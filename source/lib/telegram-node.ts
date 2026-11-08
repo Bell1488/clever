@@ -4,6 +4,17 @@ export type TelegramConfig={token?:string;chatId?:string;proxyUrl?:string};
 export class TelegramDeliveryError extends Error{constructor(public code:'not_configured'|'proxy_invalid'|'network_error'|'telegram_rejected'|'timeout'|'upstream_failed',public detail?:string){super(code);this.name='TelegramDeliveryError'}}
 export function telegramReady(config:TelegramConfig){return /^\d+:[A-Za-z0-9_-]+$/.test(config.token||'')&&/^-?\d+$/.test(config.chatId||'')&&validProxy(config.proxyUrl)}
 export function validProxy(value?:string){try{const u=new URL(value||'');return u.protocol==='socks5h:'&&!!u.hostname&&Number(u.port)>0&&Number(u.port)<=65535}catch{return false}}
+function curlFailureDetail(status:number|null,diagnostic:string){
+ if(status!==97)return `curl_${status??'unknown'}`;
+ // Only fixed codes leave this function; curl diagnostics may contain credentials.
+ if(/User was rejected by the SOCKS5 server/i.test(diagnostic))return 'curl_97_auth_rejected';
+ if(/No authentication method was acceptable/i.test(diagnostic))return 'curl_97_auth_method';
+ if(/invalid version in initial SOCKS5 response|SOCKS5 reply has wrong version/i.test(diagnostic))return 'curl_97_protocol';
+ if(/connection to proxy closed/i.test(diagnostic))return 'curl_97_closed';
+ if(/Excessive (?:user name|password) length for proxy auth/i.test(diagnostic))return 'curl_97_credentials_length';
+ const reply=diagnostic.match(/(?:Can't|cannot) complete SOCKS5 connection to [^\r\n]*\. \(([1-8])\)/i);
+ return reply?`curl_97_reply_${reply[1]}`:'curl_97';
+}
 function curlConfig(config:TelegramConfig,method:string,payload:string){const quote=(value:string)=>JSON.stringify(value);const ca=process.env.CURL_CA_BUNDLE||process.env.SSL_CERT_FILE;return [
  `url = ${quote(`https://api.telegram.org/bot${config.token}/${method}`)}`,
  `proxy = ${quote(config.proxyUrl!)}`,
@@ -12,6 +23,7 @@ function curlConfig(config:TelegramConfig,method:string,payload:string){const qu
  'header = "Content-Type: application/json"',
  `data-binary = ${quote(payload)}`,
  'silent',
+ 'show-error',
  'connect-timeout = 10',
  'max-time = 25',
  'proto = "=https"',
@@ -25,12 +37,13 @@ async function telegramRequest(config:TelegramConfig,method:'sendMessage'|'getMe
  if(!telegramReady(config))throw new TelegramDeliveryError('not_configured');
  const payload=JSON.stringify(data);
  return await new Promise<Record<string,unknown>>((resolve,reject)=>{
-  let settled=false,output='';const finish=(error?:Error,result?:Record<string,unknown>)=>{if(settled)return;settled=true;clearTimeout(timer);error?reject(error):resolve(result!)};
-  const child=spawn('curl',['--disable','--config','-'],{stdio:['pipe','pipe','ignore']});
+  let settled=false,output='',diagnostic='';const finish=(error?:Error,result?:Record<string,unknown>)=>{if(settled)return;settled=true;clearTimeout(timer);error?reject(error):resolve(result!)};
+  const child=spawn('curl',['--disable','--config','-'],{stdio:['pipe','pipe','pipe']});
   const timer=setTimeout(()=>{child.kill();finish(new TelegramDeliveryError('timeout'))},27000);
   child.stdout.setEncoding('utf8');child.stdout.on('data',(chunk:string)=>{output+=chunk;if(output.length>131072){child.kill();finish(new TelegramDeliveryError('upstream_failed'))}});
+  child.stderr.setEncoding('utf8');child.stderr.on('data',(chunk:string)=>{diagnostic=(diagnostic+chunk).slice(0,16384)});
   child.on('error',(error:NodeJS.ErrnoException)=>{const code=typeof error.code==='string'&&/^[A-Z0-9_]{1,40}$/.test(error.code)?error.code:'curl_unavailable';finish(new TelegramDeliveryError('network_error',code))});
-  child.on('close',(status:number|null)=>{if(settled)return;if(status!==0){finish(new TelegramDeliveryError(status===28?'timeout':'network_error',`curl_${status??'unknown'}`));return;}try{const body=JSON.parse(output);if(body.ok===true&&body.result&&typeof body.result==='object'&&!Array.isArray(body.result)){finish(undefined,body.result);return;}const code=Number.isInteger(body.error_code)?String(body.error_code):undefined;finish(new TelegramDeliveryError('telegram_rejected',code));}catch{finish(new TelegramDeliveryError('upstream_failed'))}});
+  child.on('close',(status:number|null)=>{if(settled)return;if(status!==0){finish(new TelegramDeliveryError(status===28?'timeout':'network_error',curlFailureDetail(status,diagnostic)));return;}try{const body=JSON.parse(output);if(body.ok===true&&body.result&&typeof body.result==='object'&&!Array.isArray(body.result)){finish(undefined,body.result);return;}const code=Number.isInteger(body.error_code)?String(body.error_code):undefined;finish(new TelegramDeliveryError('telegram_rejected',code));}catch{finish(new TelegramDeliveryError('upstream_failed'))}});
   child.stdin.on('error',()=>{});child.stdin.end(curlConfig(config,method,payload));
  });
 }
@@ -63,6 +76,19 @@ export function telegramFailureHint(error:TelegramDeliveryError){
   curl_67:'Прокси отклонил авторизацию. Проверьте логин, пароль и URL-кодирование.',
   curl_77:'Не удалось прочитать CA-файл. Проверьте путь и права CURL_CA_BUNDLE/SSL_CERT_FILE.',
   curl_97:'Ошибка SOCKS5. Проверьте тип прокси, авторизацию, IP allowlist и доступ к api.telegram.org:443.',
+  curl_97_auth_rejected:'SOCKS5-прокси отклонил логин/пароль. Проверьте реквизиты и URL-кодирование; также проверьте IP allowlist у провайдера.',
+  curl_97_auth_method:'Прокси не принял предложенный способ авторизации. Проверьте логин/пароль, тип SOCKS5 и режим авторизации у провайдера.',
+  curl_97_protocol:'Ответ на выбранном порту не соответствует SOCKS5. Проверьте протокол и порт: HTTP-прокси и MTProto-прокси здесь не подходят.',
+  curl_97_closed:'Прокси закрыл соединение во время SOCKS5-согласования. Проверьте порт, IP allowlist, авторизацию и доступность у провайдера.',
+  curl_97_credentials_length:'Логин или пароль SOCKS5 превышает 255 байт. Проверьте реквизиты и URL-кодирование.',
+  curl_97_reply_1:'SOCKS5-прокси сообщил об общей внутренней ошибке при соединении с Telegram. Проверьте работоспособность прокси у провайдера.',
+  curl_97_reply_2:'SOCKS5-прокси запретил соединение с Telegram своими правилами. Проверьте IP allowlist и разрешение api.telegram.org:443 у провайдера.',
+  curl_97_reply_3:'SOCKS5-прокси сообщил, что сеть назначения недоступна. Проверьте маршрутизацию у провайдера прокси.',
+  curl_97_reply_4:'SOCKS5-прокси сообщил, что хост Telegram недоступен. Проверьте DNS и доступ к api.telegram.org у провайдера прокси.',
+  curl_97_reply_5:'SOCKS5-прокси сообщил об отказе соединения с Telegram:443. Проверьте ограничения и исходящий доступ прокси.',
+  curl_97_reply_6:'SOCKS5-прокси сообщил об истечении TTL. Проверьте маршрутизацию у провайдера прокси.',
+  curl_97_reply_7:'SOCKS5-прокси не поддерживает команду CONNECT. Нужен SOCKS5-прокси с поддержкой TCP CONNECT.',
+  curl_97_reply_8:'SOCKS5-прокси не поддерживает переданный тип адреса. Для SOCKS5h нужна поддержка доменного имени и удалённого DNS.',
   '400':'Telegram отклонил запрос. Проверьте Chat ID и наличие бота в целевой группе.',
   '401':'Telegram отклонил токен бота. Проверьте токен в BotFather.',
   '403':'Telegram запретил доступ. Добавьте бота в чат и разрешите отправку сообщений.',
