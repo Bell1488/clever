@@ -13,7 +13,7 @@ const stop=child=>!child||child.exitCode!==null||child.signalCode!==null?Promise
 let live;
 try{
  let ready=false;for(let i=0;i<50;i++){try{const r=await fetch(origin+'/api/site-config');if(r.ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}assert.ok(ready,'portable server starts');
- for(const path of ['/','/cargo','/blog','/blog/alipay-wechat-pered-popolneniem','/blog/1688-ili-taobao','/blog/pervaya-zakupka-v-kitae','/blog/obyomnyy-ves-gruza','/blog/oplata-postavshchiku-kitay','/blog/podgotovka-gruza-k-otpravke','/contacts','/privacy','/consent','/terms']){const r=await fetch(origin+path);assert.equal(r.status,200,path);const html=await r.text();assert.match(html,/Клевер|КЛЕВЕР/);assert.doesNotMatch(html,/fenek|фенек/i);assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow')}
+ for(const path of ['/','/cargo','/blog','/blog/alipay-wechat-pered-popolneniem','/blog/1688-ili-taobao','/blog/pervaya-zakupka-v-kitae','/blog/obyomnyy-ves-gruza','/blog/oplata-postavshchiku-kitay','/blog/podgotovka-gruza-k-otpravke','/contacts','/privacy','/consent','/terms']){const r=await fetch(origin+path);assert.equal(r.status,200,path);const html=await r.text();assert.match(html,/Клевер|КЛЕВЕР/);assert.doesNotMatch(html,/fenek|фенек/i);if(path==='/'){assert.match(html,/class="hero-ticker" role="group"/);assert.match(html,/КИТАЙ → РОССИЯ/);assert.match(html,/aria-hidden="true"/)}assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow')}
  assert.equal((await fetch(origin+'/blog/unknown-article')).status,404);
  assert.equal((await fetch(origin+'/admin')).status,404);
  assert.equal((await fetch(origin+'/.env')).status,404);
