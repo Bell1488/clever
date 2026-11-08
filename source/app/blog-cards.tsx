@@ -1,0 +1,9 @@
+'use client';
+import { ArrowUpRight, ArrowRight, Clock3, WalletCards, ShoppingBag, ClipboardList, PackageOpen } from 'lucide-react';
+import { articles, type Article } from '@/lib/articles';
+export function ArticleArtwork({article}:{article:Article}){
+ const Icon=article.art==='wallet'?WalletCards:article.art==='markets'?ShoppingBag:article.art==='purchase'?ClipboardList:PackageOpen;
+ return <div className={`article-art ${article.art}`} aria-hidden="true"><div className="article-art-grid"/><span className="art-issue">КЛЕВЕР / JOURNAL</span><span className="art-character">{article.art==='wallet'?'支付':article.art==='markets'?'淘':article.art==='purchase'?'采购':'运输'}</span><div className="art-symbol"><Icon size={76} strokeWidth={.8}/></div><span className="art-caption">{article.kicker}</span><span className="art-orbit"/></div>
+}
+export function ArticleCard({article}:{article:Article}){return <a className="article-card" data-goal="blog_article_open" data-article={article.slug} href={`/blog/${article.slug}`}><ArticleArtwork article={article}/><div className="article-card-content"><div className="article-card-meta"><span>{article.category}</span><span><Clock3 size={11}/>{article.readTime}</span></div><h3>{article.shortTitle}</h3><p>{article.excerpt}</p><span className="article-read">Читать статью <ArrowUpRight size={17}/></span></div></a>}
+export function BlogTeaser(){return <section className="section container journal-section" id="blog"><div className="section-head"><div><div className="eyebrow">06 / БЛОГ КЛЕВЕР</div><h2>С Китаем —<br/><span>на понятном языке.</span></h2></div><div className="journal-heading-right"><p>Практические материалы о платежах,<br/>закупках и доставке. Без сложных терминов.</p><a className="text-link" href="/blog">Все статьи <ArrowRight size={15}/></a></div></div><div className="home-articles">{[articles[0],articles[1],articles[3]].map(a=><ArticleCard key={a.slug} article={a}/>)}</div></section>}

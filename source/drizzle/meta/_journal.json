@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793704774657,
+      "tag": "0000_dazzling_virginia_dare",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793706989255,
+      "tag": "0001_careful_nomad",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793783287695,
+      "tag": "0002_closed_scourge",
+      "breakpoints": true
+    }
+  ]
+}

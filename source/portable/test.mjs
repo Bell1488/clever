@@ -1,0 +1,40 @@
+import { randomUUID } from 'node:crypto';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { mkdtemp,readFile,rm,writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve,join } from 'node:path';
+const testDir=await mkdtemp(join(tmpdir(),'klever-api-test-'));
+await writeFile(join(testDir,'requests.ndjson'),JSON.stringify({id:randomUUID(),createdAt:Date.now()-91*24*60*60*1000,deliveryStatus:'pending'})+'\n');
+const serverFile=resolve(process.argv[2]||'outputs/klever-release/site/server.mjs');
+const port=43891;const origin=`http://127.0.0.1:${port}`;
+const server=spawn(process.execPath,[serverFile],{env:{...process.env,PORT:String(port),DATA_DIR:testDir,PUBLIC_LAUNCH:'false'},stdio:['ignore','pipe','pipe']});
+const stop=child=>!child||child.exitCode!==null||child.signalCode!==null?Promise.resolve():new Promise(resolve=>{child.once('exit',resolve);child.kill('SIGTERM')});
+let live;
+try{
+ let ready=false;for(let i=0;i<50;i++){try{const r=await fetch(origin+'/api/site-config');if(r.ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}assert.ok(ready,'portable server starts');
+ for(const path of ['/','/cargo','/blog','/blog/alipay-wechat-pered-popolneniem','/blog/1688-ili-taobao','/blog/pervaya-zakupka-v-kitae','/blog/obyomnyy-ves-gruza','/blog/oplata-postavshchiku-kitay','/blog/podgotovka-gruza-k-otpravke','/contacts','/privacy','/consent','/terms']){const r=await fetch(origin+path);assert.equal(r.status,200,path);const html=await r.text();assert.match(html,/Клевер|КЛЕВЕР/);assert.doesNotMatch(html,/fenek|фенек/i);assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow')}
+ assert.equal((await fetch(origin+'/blog/unknown-article')).status,404);
+ assert.equal((await fetch(origin+'/admin')).status,404);
+ assert.equal((await fetch(origin+'/.env')).status,404);
+ assert.equal((await fetch(origin+'/unknown-page')).status,404);
+ const post=(data,source=origin,ip)=>fetch(origin+'/api/requests',{method:'POST',headers:{'Content-Type':'application/json',Origin:source,...(ip?{'X-Real-IP':ip}:{})},body:JSON.stringify(data)});
+ const lead={requestId:randomUUID(),contact:'@klever_test_qa',channel:'Telegram',service:'Карго',details:'Тест <script>alert(1)</script>',consent:true,consentVersion:'2026-11-03',website:'',attribution:{utm_source:'yandex',yclid:'test_123'}};
+ assert.equal((await post({...lead,consent:false})).status,400);
+ assert.equal((await post({...lead,contact:'bad contact'})).status,400);
+ assert.equal((await post({...lead,website:'spam'})).status,400);
+ assert.equal((await post(lead,'https://other.example')).status,403);
+ const valid=await post(lead);assert.equal(valid.status,503);
+ const repeat=await post(lead);assert.equal(repeat.status,503);
+ assert.equal((await post({...lead,contact:'@other_contact_qa'})).status,409);
+ const phone={...lead,requestId:randomUUID(),contact:'+7 (999) 123-45-67'};assert.equal((await post(phone)).status,503);
+ const rows=(await readFile(join(testDir,'requests.ndjson'),'utf8')).trim().split('\n').map(JSON.parse);assert.equal(rows.length,2);assert.equal(rows[1].channel,'Телефон');assert.equal(rows[1].name,'');assert.equal(rows[0].attribution.utm_source,'yandex');assert.equal(rows[0].consentVersion,'2026-11-03');assert.ok(rows[0].consentAt>0);
+ const invalid={...lead,requestId:randomUUID(),contact:'bad contact'};for(let i=0;i<10;i++)assert.equal((await post(invalid,origin,'203.0.113.11')).status,400);assert.equal((await post(invalid,origin,'203.0.113.11')).status,429);assert.equal((await post(invalid,origin,'203.0.113.12')).status,400);
+ const config=await(await fetch(origin+'/api/site-config')).json();assert.equal(config.preview,true);assert.equal((await fetch(origin+'/sitemap.xml')).status,404);
+ const oldRows=(await readFile(join(testDir,'requests.ndjson'),'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);assert.ok(oldRows.every(row=>Number(row.createdAt)>=Date.now()-90*24*60*60*1000));
+ assert.match(await(await fetch(origin+'/robots.txt')).text(),/Disallow: \//);
+ await stop(server);
+ const livePort=43892,liveOrigin=`http://127.0.0.1:${livePort}`;live=spawn(process.execPath,[serverFile],{env:{...process.env,PORT:String(livePort),DATA_DIR:testDir,PUBLIC_LAUNCH:'true',SITE_URL:'https://klever.example',METRIKA_ID:'12345678',TELEGRAM_URL:'https://t.me/klever',CONTACT_PHONE:'+79991234567',TELEGRAM_BOT_TOKEN:'123456:test-token',TELEGRAM_CHAT_ID:'-1001234567890',TELEGRAM_PROXY_URL:'socks5h://proxy.example:1080'},stdio:['ignore','pipe','pipe']});
+ let configured=false;for(let i=0;i<50;i++){try{const r=await fetch(liveOrigin+'/api/site-config');if(r.ok){configured=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}assert.ok(configured,'configured public server starts');assert.equal((await(await fetch(liveOrigin+'/api/site-config')).json()).preview,false);assert.equal((await fetch(liveOrigin+'/')).headers.get('x-robots-tag'),null);assert.match(await(await fetch(liveOrigin+'/robots.txt')).text(),/Allow: \/[\s\S]*Sitemap: https:\/\/klever\.example\/sitemap\.xml/);const sitemap=await(await fetch(liveOrigin+'/sitemap.xml')).text();assert.match(sitemap,/https:\/\/klever\.example\//);for(const slug of ['oplata-postavshchiku-kitay','podgotovka-gruza-k-otpravke'])assert.ok(sitemap.includes(`https://klever.example/blog/${slug}`),`sitemap includes ${slug}`);
+ console.log('Portable checks passed: routes, branding, form validation, consent, honeypot, origin, attribution and no admin surface.');
+}finally{await stop(live);await stop(server);await rm(testDir,{recursive:true,force:true})}

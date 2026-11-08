@@ -1,0 +1,4 @@
+import type { LeadData } from './lead-schema';
+export type NotificationLead=LeadData&{id:string;createdAt:number};
+export function telegramMessage(lead:NotificationLead){const lines=['🟢 Новая заявка · Клевер','№ '+lead.id.slice(0,8),'',`Услуга: ${lead.service}`,`Контакт: ${lead.contact}`,`Способ связи: ${lead.channel}`];if(lead.name)lines.push('Имя: '+lead.name);if(lead.details)lines.push('','Расчёт / комментарий:',lead.details);const source=Object.entries(lead.attribution).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`);if(source.length)lines.push('','Источник:',...source);lines.push('','Получено: '+new Date(lead.createdAt).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})+' МСК');return Array.from(lines.join('\n')).slice(0,3900).join('');}
+export const DELIVERY_PENDING_NOTICE='Заявка сохранена. Уведомление в Telegram пока ожидает отправки.';
