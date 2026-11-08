@@ -4,7 +4,7 @@
 
 ## Что понадобится
 
-- VPS с публичным IPv4, Ubuntu Server 24.04 и доступом `sudo`.
+- VPS с публичным IPv4 и Ubuntu Server 24.04.
 - Доступ к DNS-записям домена `cleverobmen.pro`.
 - Git-доступ к `https://github.com/Bell1488/clever.git`.
 - Данные Telegram-бота, ID группы и рабочий SOCKS5h-прокси.
@@ -34,22 +34,28 @@ dig +short CNAME www.cleverobmen.pro
 
 ## 2. Подготовьте сервер
 
-Подключитесь по SSH и обновите систему:
+Подключитесь по SSH как `root` (или выполните `sudo -i`, если провайдер выдаёт обычного пользователя). Убедитесь, что текущий пользователь — root:
 
 ```bash
-sudo apt update
-sudo apt upgrade -y
-sudo apt install -y ca-certificates curl git nginx ufw dnsutils
+whoami
+```
+
+Команда должна вывести `root`. Далее выполняйте команды в этой root-сессии. Обновите систему:
+
+```bash
+apt update
+apt upgrade -y
+apt install -y ca-certificates curl git nginx ufw dnsutils
 ```
 
 Откройте SSH, HTTP и HTTPS в системном firewall. Если у хостера есть отдельный сетевой firewall, откройте там TCP-порты 22, 80 и 443 тоже. Порт приложения `3000` наружу открывать не нужно.
 
 ```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-sudo ufw status
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw enable
+ufw status
 ```
 
 ## 3. Установите Node.js и получите сайт
@@ -58,17 +64,16 @@ sudo ufw status
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh
-sudo -E bash /tmp/nodesource_setup.sh
-sudo apt install -y nodejs
+bash /tmp/nodesource_setup.sh
+apt install -y nodejs
 node --version
 ```
 
-Версия должна быть не ниже `v22.13.0`. Создайте отдельного системного пользователя и клонируйте репозиторий:
+Версия должна быть не ниже `v22.13.0`. Клонируйте репозиторий в `/opt/clever` и подготовьте каталог для данных заявок:
 
 ```bash
-sudo useradd --system --create-home --home-dir /opt/clever --shell /usr/sbin/nologin clever
-sudo -u clever git clone https://github.com/Bell1488/clever.git /opt/clever
-sudo install -d -o clever -g clever -m 0750 /var/lib/clever/data
+git clone https://github.com/Bell1488/clever.git /opt/clever
+install -d -m 0700 /var/lib/clever/data
 ```
 
 Проверьте, что готовый сервер присутствует:
@@ -82,9 +87,9 @@ test -f /opt/clever/site/server.mjs && echo "Сборка найдена"
 Создайте отдельный env-файл вне Git и каталога сайта:
 
 ```bash
-sudo install -d -m 0750 -o root -g clever /etc/clever
-sudo install -m 0640 -o root -g clever /dev/null /etc/clever/clever.env
-sudo nano /etc/clever/clever.env
+install -d -m 0700 /etc/clever
+install -m 0600 /dev/null /etc/clever/clever.env
+nano /etc/clever/clever.env
 ```
 
 Заполните файл. Замените примеры реальными значениями; токен, пароль прокси и ID группы не публикуйте:
@@ -105,7 +110,7 @@ TELEGRAM_CHAT_ID=ID_ГРУППЫ
 TELEGRAM_PROXY_URL=socks5h://ЛОГИН:ПАРОЛЬ@ХОСТ:ПОРТ
 ```
 
-Логин и пароль прокси со специальными символами нужно URL-кодировать. `socks5h` оставляет DNS-разрешение Telegram на прокси-сервере. Файл содержит персональные данные конфигурации, поэтому его права должны оставаться `0640`, владелец — `root`, группа — `clever`.
+Логин и пароль прокси со специальными символами нужно URL-кодировать. `socks5h` оставляет DNS-разрешение Telegram на прокси-сервере. Файл содержит секреты, поэтому оставьте права `0600` и владельца `root`. Служба также запускается от root и сможет прочитать файл.
 
 ## 5. Создайте службу systemd
 
@@ -113,7 +118,7 @@ TELEGRAM_PROXY_URL=socks5h://ЛОГИН:ПАРОЛЬ@ХОСТ:ПОРТ
 
 ```bash
 command -v node
-sudo nano /etc/systemd/system/clever.service
+nano /etc/systemd/system/clever.service
 ```
 
 Содержимое `/etc/systemd/system/clever.service`:
@@ -126,8 +131,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=clever
-Group=clever
+User=root
+Group=root
 WorkingDirectory=/opt/clever/site
 ExecStart=/usr/bin/node --env-file=/etc/clever/clever.env /opt/clever/site/server.mjs
 Restart=on-failure
@@ -145,9 +150,9 @@ WantedBy=multi-user.target
 Если `command -v node` показал другой путь, замените `/usr/bin/node` в `ExecStart`. Затем запустите службу:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now clever
-sudo systemctl status clever --no-pager
+systemctl daemon-reload
+systemctl enable --now clever
+systemctl status clever --no-pager
 curl -I http://127.0.0.1:3000/
 ```
 
@@ -158,7 +163,7 @@ curl -I http://127.0.0.1:3000/
 Создайте конфигурацию виртуального хоста:
 
 ```bash
-sudo nano /etc/nginx/sites-available/cleverobmen.pro
+nano /etc/nginx/sites-available/cleverobmen.pro
 ```
 
 Вставьте конфигурацию для первичного HTTP-запуска и проверки Certbot:
@@ -185,9 +190,9 @@ server {
 Включите сайт и проверьте конфигурацию:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/cleverobmen.pro /etc/nginx/sites-enabled/cleverobmen.pro
-sudo nginx -t
-sudo systemctl reload nginx
+ln -s /etc/nginx/sites-available/cleverobmen.pro /etc/nginx/sites-enabled/cleverobmen.pro
+nginx -t
+systemctl reload nginx
 curl -I http://cleverobmen.pro/
 ```
 
@@ -198,17 +203,17 @@ curl -I http://cleverobmen.pro/
 После того как оба доменных имени разрешаются на VPS и HTTP-сайт доступен, установите Certbot через Snap и выпустите сертификат:
 
 ```bash
-sudo snap install core
-sudo snap refresh core
-sudo snap install --classic certbot
-sudo ln -s /snap/bin/certbot /usr/local/bin/certbot
-sudo certbot --nginx --redirect -d cleverobmen.pro -d www.cleverobmen.pro
+snap install core
+snap refresh core
+snap install --classic certbot
+ln -s /snap/bin/certbot /usr/local/bin/certbot
+certbot --nginx --redirect -d cleverobmen.pro -d www.cleverobmen.pro
 ```
 
 Certbot настроит HTTPS и перенаправление на защищённое соединение. Проверьте автоматическое продление:
 
 ```bash
-sudo certbot renew --dry-run
+certbot renew --dry-run
 curl -I https://cleverobmen.pro/
 ```
 
@@ -227,8 +232,8 @@ curl -s https://cleverobmen.pro/robots.txt
 Откройте сайт в браузере и отправьте одну тестовую заявку с контролируемым контактом. Убедитесь, что она приходит в нужную Telegram-группу через SOCKS5h и что интерфейс показывает подтверждение отправки. При сбое проверьте логи:
 
 ```bash
-sudo journalctl -u clever -n 100 --no-pager
-sudo journalctl -u clever -f
+journalctl -u clever -n 100 --no-pager
+journalctl -u clever -f
 ```
 
 Также проверьте в Яндекс Метрике цель `lead_success`. Не отмечайте доставку как проверенную, если тестовое сообщение не появилось в группе.
@@ -238,7 +243,7 @@ sudo journalctl -u clever -f
 После проверки домена, HTTPS, контактов, Метрики, реальной доставки Telegram и документов измените только параметр в env-файле:
 
 ```bash
-sudo nano /etc/clever/clever.env
+nano /etc/clever/clever.env
 ```
 
 ```dotenv
@@ -248,7 +253,7 @@ PUBLIC_LAUNCH=true
 Примените настройку и проверьте публичные robots и sitemap:
 
 ```bash
-sudo systemctl restart clever
+systemctl restart clever
 curl -s https://cleverobmen.pro/robots.txt
 curl -s https://cleverobmen.pro/sitemap.xml
 ```
@@ -260,9 +265,9 @@ Sitemap должен содержать главную, карго, блог и 
 После публикации изменений в GitHub обновите сервер:
 
 ```bash
-sudo -u clever git -C /opt/clever pull --ff-only
-sudo systemctl restart clever
-sudo systemctl status clever --no-pager
+git -C /opt/clever pull --ff-only
+systemctl restart clever
+systemctl status clever --no-pager
 ```
 
 Проверяйте запуск после обновления через `curl -I https://cleverobmen.pro/` и `journalctl`. Файл `/etc/clever/clever.env` и заявки в `/var/lib/clever/data` не находятся в каталоге репозитория и не перезаписываются `git pull`.
@@ -271,6 +276,6 @@ sudo systemctl status clever --no-pager
 
 - Не открывайте порт `3000` в firewall: Nginx подключается к Node через `127.0.0.1`.
 - Не копируйте `.env`, токен Telegram, пароль прокси и файлы заявок в GitHub или каталог `public_html`.
-- Ограничьте SSH ключами и включите регулярные обновления Ubuntu.
+- Ограничьте SSH ключами и включите регулярные обновления Ubuntu. Приложение работает от root, поэтому поддерживайте сервер и зависимости в актуальном состоянии.
 - Храните защищённую резервную копию `/var/lib/clever/data` с ограниченным доступом и согласованным сроком хранения заявок.
-- После смены токена бота или пароля прокси обновите `/etc/clever/clever.env` и выполните `sudo systemctl restart clever`.
+- После смены токена бота или пароля прокси обновите `/etc/clever/clever.env` и выполните `systemctl restart clever`.

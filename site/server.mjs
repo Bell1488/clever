@@ -5792,9 +5792,10 @@ function telegramMessage(lead) {
 //#endregion
 //#region lib/telegram-node.ts
 var TelegramDeliveryError = class extends Error {
-	constructor(code) {
+	constructor(code, detail) {
 		super(code);
 		this.code = code;
+		this.detail = detail;
 		this.name = "TelegramDeliveryError";
 	}
 };
@@ -5851,18 +5852,20 @@ async function sendTelegram(lead, config) {
 				try {
 					const body = JSON.parse(text);
 					if (res.statusCode === 200 && body.ok === true && Number.isInteger(body.result?.message_id)) finish(void 0, String(body.result.message_id));
-					else finish(new TelegramDeliveryError("upstream_failed"));
+					else finish(new TelegramDeliveryError("telegram_rejected", String(res.statusCode || 0)));
 				} catch {
-					finish(new TelegramDeliveryError("upstream_failed"));
+					finish(new TelegramDeliveryError("telegram_rejected", String(res.statusCode || 0)));
 				}
 			});
 			res.on("error", () => finish(new TelegramDeliveryError("upstream_failed")));
 		});
 		const timer = setTimeout(() => {
 			req.destroy();
-			finish(new TelegramDeliveryError("upstream_failed"));
+			finish(new TelegramDeliveryError("timeout"));
 		}, 12e3);
-		req.on("error", () => finish(new TelegramDeliveryError("upstream_failed")));
+		req.on("error", (error) => {
+			finish(new TelegramDeliveryError("network_error", (typeof error.code === "string" && /^[A-Z0-9_]{1,40}$/.test(error.code) ? error.code : "") || void 0));
+		});
 		req.end(payload);
 	});
 }
@@ -5907,7 +5910,15 @@ function createTelegramOutbox(file) {
 					status: "sent",
 					messageId
 				};
-			} catch {}
+			} catch (error) {
+				const failure = error instanceof TelegramDeliveryError ? error : new TelegramDeliveryError("upstream_failed");
+				console.error(`telegram_delivery_failed code=${failure.code}${failure.detail ? ` detail=${failure.detail}` : ""}`);
+			}
+			else {
+				const tokenFormat = /^\d+:[A-Za-z0-9_-]+$/.test(config.token || "");
+				const chatIdFormat = /^-?\d+$/.test(config.chatId || "");
+				console.error(`telegram_delivery_failed code=not_configured token_format=${tokenFormat} chat_id_format=${chatIdFormat} proxy_valid=${validProxy(config.proxyUrl)}`);
+			}
 			await appendFile(file, JSON.stringify(record) + "\n", { mode: 384 });
 			records.set(lead.id, record);
 			return record;

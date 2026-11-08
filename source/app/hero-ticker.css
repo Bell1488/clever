@@ -2,7 +2,7 @@
 .hero-ticker{height:52px;overflow:hidden;background:#214f3d;color:#f7f8f4;display:flex;align-items:center}
 .hero-ticker-track{display:flex;width:max-content;flex:none;animation:hero-ticker-scroll 36s linear infinite;will-change:transform}
 .hero-ticker:hover .hero-ticker-track{animation-play-state:paused}
-.hero-ticker-group{display:flex;flex:none;align-items:center;gap:40px;padding:0 25px}
+.hero-ticker-group{display:flex;flex:none;align-items:center;justify-content:space-around;gap:40px;min-width:100vw;box-sizing:border-box;padding:0 25px}
 .hero-ticker-item{display:inline-flex;align-items:center;gap:14px;white-space:nowrap;font-size:10px;font-weight:500;color:#eef3e9}
 .hero-ticker-item i{font-style:normal;font-size:13px;font-weight:400;color:#dcf1a4}
 @keyframes hero-ticker-scroll{to{transform:translateX(-50%)}}
