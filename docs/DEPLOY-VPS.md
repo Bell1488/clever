@@ -219,6 +219,15 @@ curl -I https://cleverobmen.pro/
 
 ## 8. Проверьте сайт и доставку заявки
 
+Сначала проверьте SOCKS5h, TLS, токен и права бота без отправки сообщений:
+
+```bash
+cd /opt/clever/site
+node --env-file=/etc/clever/clever.env server.mjs --check-telegram
+```
+
+При ошибке команда завершится с кодом 1 и выведет подсказку без секретов. Расшифровка кодов — в `docs/TELEGRAM.md`. После обновления сборки или env-файла перезапустите службу: `systemctl restart clever`.
+
 До включения индексации проверьте главную, карго, блог и статьи:
 
 ```bash

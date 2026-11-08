@@ -54,10 +54,11 @@ function validProxy(value) {
 		return false;
 	}
 }
-function curlConfig(config, payload) {
+function curlConfig(config, method, payload) {
 	const quote = (value) => JSON.stringify(value);
+	const ca = process.env.CURL_CA_BUNDLE || process.env.SSL_CERT_FILE;
 	return [
-		`url = ${quote(`https://api.telegram.org/bot${config.token}/sendMessage`)}`,
+		`url = ${quote(`https://api.telegram.org/bot${config.token}/${method}`)}`,
 		`proxy = ${quote(config.proxyUrl)}`,
 		"noproxy = \"\"",
 		"request = \"POST\"",
@@ -68,26 +69,22 @@ function curlConfig(config, payload) {
 		"max-time = 25",
 		"proto = \"=https\"",
 		"max-filesize = 65536",
+		...ca ? [`cacert = ${quote(ca)}`] : [],
 		""
 	].join("\n");
 }
-async function sendTelegram(lead, config) {
+async function telegramRequest(config, method, data) {
 	if (!config.token || !config.chatId || !config.proxyUrl) throw new TelegramDeliveryError("not_configured");
 	if (!validProxy(config.proxyUrl)) throw new TelegramDeliveryError("proxy_invalid");
 	if (!telegramReady(config)) throw new TelegramDeliveryError("not_configured");
-	const payload = JSON.stringify({
-		chat_id: config.chatId,
-		text: telegramMessage(lead),
-		protect_content: true,
-		link_preview_options: { is_disabled: true }
-	});
+	const payload = JSON.stringify(data);
 	return await new Promise((resolve, reject) => {
 		let settled = false, output = "";
-		const finish = (error, id) => {
+		const finish = (error, result) => {
 			if (settled) return;
 			settled = true;
 			clearTimeout(timer);
-			error ? reject(error) : resolve(id);
+			error ? reject(error) : resolve(result);
 		};
 		const child = spawn("curl", [
 			"--disable",
@@ -121,8 +118,8 @@ async function sendTelegram(lead, config) {
 			}
 			try {
 				const body = JSON.parse(output);
-				if (body.ok === true && Number.isInteger(body.result?.message_id)) {
-					finish(void 0, String(body.result.message_id));
+				if (body.ok === true && body.result && typeof body.result === "object" && !Array.isArray(body.result)) {
+					finish(void 0, body.result);
 					return;
 				}
 				finish(new TelegramDeliveryError("telegram_rejected", Number.isInteger(body.error_code) ? String(body.error_code) : void 0));
@@ -131,8 +128,53 @@ async function sendTelegram(lead, config) {
 			}
 		});
 		child.stdin.on("error", () => {});
-		child.stdin.end(curlConfig(config, payload));
+		child.stdin.end(curlConfig(config, method, payload));
 	});
+}
+async function sendTelegram(lead, config) {
+	const result = await telegramRequest(config, "sendMessage", {
+		chat_id: config.chatId,
+		text: telegramMessage(lead),
+		protect_content: true,
+		link_preview_options: { is_disabled: true }
+	});
+	if (!Number.isInteger(result.message_id)) throw new TelegramDeliveryError("upstream_failed");
+	return String(result.message_id);
+}
+async function checkTelegram(config) {
+	const bot = await telegramRequest(config, "getMe", {});
+	if (!Number.isInteger(bot.id) || bot.is_bot !== true) throw new TelegramDeliveryError("upstream_failed");
+	const chat = await telegramRequest(config, "getChat", { chat_id: config.chatId });
+	if (chat.type === "private") return;
+	const member = await telegramRequest(config, "getChatMember", {
+		chat_id: config.chatId,
+		user_id: bot.id
+	});
+	const permissions = chat.permissions;
+	if (!(member.status === "creator" || member.status === "administrator" && (chat.type !== "channel" || member.can_post_messages === true) || chat.type !== "channel" && (member.status === "member" ? permissions?.can_send_messages !== false : member.status === "restricted" && member.is_member === true && member.can_send_messages === true))) throw new TelegramDeliveryError("telegram_rejected", "send_forbidden");
+}
+function telegramFailureHint(error) {
+	if (error.code === "not_configured") return "Проверьте TELEGRAM_BOT_TOKEN, числовой TELEGRAM_CHAT_ID и TELEGRAM_PROXY_URL в env-файле запущенного процесса.";
+	if (error.code === "proxy_invalid") return "Нужен адрес socks5h://[логин:пароль@]хост:порт. Спецсимволы логина и пароля URL-кодируются.";
+	const hints = {
+		ENOENT: "Установите curl и убедитесь, что он доступен в PATH службы.",
+		curl_5: "Не удалось разрешить адрес SOCKS5h-прокси. Проверьте его хост и DNS сервера.",
+		curl_6: "Не удалось разрешить адрес назначения. Проверьте DNS на прокси.",
+		curl_7: "Нет соединения с прокси. Проверьте хост, порт, firewall и доступность прокси с VPS.",
+		curl_28: "Истекло время ожидания. Проверьте доступность и скорость прокси.",
+		curl_35: "Ошибка TLS. Проверьте сертификаты, системное время и доступ прокси к Telegram:443.",
+		curl_60: "Не прошла проверка сертификата. Обновите ca-certificates; проверьте CURL_CA_BUNDLE/SSL_CERT_FILE и системное время.",
+		curl_67: "Прокси отклонил авторизацию. Проверьте логин, пароль и URL-кодирование.",
+		curl_77: "Не удалось прочитать CA-файл. Проверьте путь и права CURL_CA_BUNDLE/SSL_CERT_FILE.",
+		curl_97: "Ошибка SOCKS5. Проверьте тип прокси, авторизацию, IP allowlist и доступ к api.telegram.org:443.",
+		"400": "Telegram отклонил запрос. Проверьте Chat ID и наличие бота в целевой группе.",
+		"401": "Telegram отклонил токен бота. Проверьте токен в BotFather.",
+		"403": "Telegram запретил доступ. Добавьте бота в чат и разрешите отправку сообщений.",
+		"404": "Telegram не нашёл бота или ресурс. Проверьте токен и Chat ID.",
+		"429": "Лимит Telegram. Подождите перед повторной отправкой.",
+		send_forbidden: "Бот не может отправлять сообщения. Проверьте членство и права в группе или канале."
+	};
+	return hints[error.detail || ""] || (error.code === "timeout" ? hints.curl_28 : "Проверьте доступность Telegram через SOCKS5h и настройки curl.");
 }
 //#endregion
 //#region portable/telegram-outbox.ts
@@ -178,6 +220,7 @@ function createTelegramOutbox(file) {
 			} catch (error) {
 				const failure = error instanceof TelegramDeliveryError ? error : new TelegramDeliveryError("upstream_failed");
 				console.error(`telegram_delivery_failed code=${failure.code}${failure.detail ? ` detail=${failure.detail}` : ""}`);
+				console.error(telegramFailureHint(failure));
 			}
 			else {
 				const tokenFormat = /^\d+:[A-Za-z0-9_-]+$/.test(config.token || "");
@@ -4072,6 +4115,21 @@ var articles = [
 ];
 //#endregion
 //#region portable/server.ts
+var localTelegram = () => ({
+	token: process.env.TELEGRAM_BOT_TOKEN,
+	chatId: process.env.TELEGRAM_CHAT_ID,
+	proxyUrl: process.env.TELEGRAM_PROXY_URL
+});
+if (process.argv.includes("--check-telegram")) try {
+	await checkTelegram(localTelegram());
+	console.log("Telegram OK: SOCKS5h, TLS, токен, чат и права бота проверены. Сообщения не отправлялись.");
+	process.exit(0);
+} catch (error) {
+	const failure = error instanceof TelegramDeliveryError ? error : new TelegramDeliveryError("upstream_failed");
+	console.error(`telegram_check_failed code=${failure.code}${failure.detail ? ` detail=${failure.detail}` : ""}`);
+	console.error(telegramFailureHint(failure));
+	process.exit(1);
+}
 var base = dirname(fileURLToPath(import.meta.url));
 var publicDir = resolve(base, "public");
 var dataDir = resolve(process.env.DATA_DIR || join(base, "data"));
@@ -4113,11 +4171,6 @@ await pruneExpiredLeads();
 setInterval(() => {
 	pruneExpiredLeads().catch(() => console.error("lead_retention_failed"));
 }, 1440 * 60 * 1e3).unref();
-var localTelegram = () => ({
-	token: process.env.TELEGRAM_BOT_TOKEN,
-	chatId: process.env.TELEGRAM_CHAT_ID,
-	proxyUrl: process.env.TELEGRAM_PROXY_URL
-});
 var routes = [
 	"/",
 	"/cargo",
@@ -4173,7 +4226,7 @@ function config() {
 		telegramUrl: validUrl(process.env.TELEGRAM_URL, "t.me"),
 		phone: /^\+?[\d\s()-]{10,24}$/.test(process.env.CONTACT_PHONE || "") ? process.env.CONTACT_PHONE : "",
 		email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.CONTACT_EMAIL || "") ? process.env.CONTACT_EMAIL : "",
-		preview: !publicLaunchReady(process.env, "direct"),
+		preview: !publicLaunchReady(process.env),
 		portable: true
 	};
 }
@@ -4258,12 +4311,12 @@ var server = createServer(async (req, res) => {
 		if (req.method !== "GET" && req.method !== "HEAD") return json(res, 405, { error: "Метод не поддерживается." });
 		if (path === "/robots.txt") {
 			res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-			res.end(publicLaunchReady(process.env, "direct") ? "User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: " + siteOrigin() + "/sitemap.xml\n" : "User-agent: *\nDisallow: /\n");
+			res.end(publicLaunchReady(process.env) ? "User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: " + siteOrigin() + "/sitemap.xml\n" : "User-agent: *\nDisallow: /\n");
 			return;
 		}
 		if (path === "/sitemap.xml") {
 			const origin = siteOrigin();
-			if (!publicLaunchReady(process.env, "direct") || !origin) return json(res, 404, { error: "Публикация закрыта или не настроен домен." });
+			if (!publicLaunchReady(process.env) || !origin) return json(res, 404, { error: "Публикация закрыта или не настроен домен." });
 			res.writeHead(200, { "Content-Type": "application/xml; charset=utf-8" });
 			res.end("<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" + routes.filter((p) => ![
 				"/privacy",
@@ -4296,7 +4349,7 @@ var server = createServer(async (req, res) => {
 					".woff2": "font/woff2"
 				}[extname(file)] || "application/octet-stream",
 				"Cache-Control": path.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache",
-				...!publicLaunchReady(process.env, "direct") ? { "X-Robots-Tag": "noindex, nofollow" } : {}
+				...!publicLaunchReady(process.env) ? { "X-Robots-Tag": "noindex, nofollow" } : {}
 			});
 			res.end(req.method === "HEAD" ? void 0 : data);
 		} catch {
@@ -4311,6 +4364,6 @@ var server = createServer(async (req, res) => {
 	}
 });
 var port = Number(process.env.PORT || 3e3);
-server.listen(port, process.env.HOST || "127.0.0.1", () => console.log(`Клевер запущен: http://${process.env.HOST || "127.0.0.1"}:${port}`));
+server.listen(port, process.env.HOST || "127.0.0.1", () => console.log(`Клевер запущен: http://${process.env.HOST || "127.0.0.1"}:${server.address().port}`));
 //#endregion
 export {};
