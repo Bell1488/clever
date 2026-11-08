@@ -3805,32 +3805,8 @@ var leadSchema = objectType({
 }));
 //#endregion
 //#region lib/public-launch.ts
-function siteOrigin$1(value) {
-	try {
-		const url = new URL(value || "");
-		return url.protocol === "https:" && url.pathname === "/" && !url.search && !url.hash ? url.origin : "";
-	} catch {
-		return "";
-	}
-}
-function publicLaunchReady(env = process.env, _delivery) {
-	const telegramUrl = (() => {
-		try {
-			const url = new URL(env.TELEGRAM_URL || "");
-			return url.protocol === "https:" && (url.hostname === "t.me" || url.hostname.endsWith(".t.me"));
-		} catch {
-			return false;
-		}
-	})();
-	const proxy = (() => {
-		try {
-			const url = new URL(env.TELEGRAM_PROXY_URL || "");
-			return url.protocol === "socks5h:" && Boolean(url.hostname) && Number(url.port) > 0;
-		} catch {
-			return false;
-		}
-	})();
-	return env.PUBLIC_LAUNCH === "true" && Boolean(siteOrigin$1(env.SITE_URL)) && /^\d{5,12}$/.test(env.METRIKA_ID || "") && telegramUrl && Boolean(env.TELEGRAM_BOT_TOKEN) && /^-?\d+$/.test(env.TELEGRAM_CHAT_ID || "") && proxy;
+function publicLaunchReady(env = process.env) {
+	return env.PUBLIC_LAUNCH === "true";
 }
 //#endregion
 //#region lib/articles.ts
