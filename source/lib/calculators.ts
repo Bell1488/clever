@@ -4,7 +4,7 @@ export type PaymentService = typeof PAYMENT_SERVICES[number];
 export function paymentEstimate(amount: number, currency: 'RUB' | 'CNY') {
   if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000) return null;
   const rub = currency === 'RUB' ? amount : amount * PAYMENT_RATE;
-  return { rub, cny: rub / PAYMENT_RATE, valid: rub >= 10000 };
+  return { rub, cny: rub / PAYMENT_RATE, valid: rub >= 5000 };
 }
 export const TRANSPORT = {
   road: { title: 'Авто', days: '18–25', rate: 3.6, factor: 200 },

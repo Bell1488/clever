@@ -7,3 +7,14 @@
 @media(max-width:370px){.header-contacts .btn{padding:8px}.header-contacts .btn>span{display:none}.header-contacts .btn{width:34px}.hero h1{font-size:46px}.hero-asterisk{font-size:42px;right:0}.hero-pills{font-size:8px;gap:8px}.exchange-card{padding:19px}.service-tabs button{font-size:10px}.service-card{height:250px;padding:15px 12px}.service-card h3{font-size:15px}.service-brand{font-size:13px}.cargo-calc-link{display:block;margin:13px 0 0}.cargo-band{min-height:470px}.cargo-hero h1{font-size:50px}.cargo-hero-actions{gap:13px}.cargo-hero-actions>.btn{font-size:9px;gap:8px}.cargo-hero-actions>.text-link{font-size:8px}.calculator-input{padding:22px 16px}.calculator-title .small-tag{display:none}.form-grid select{font-size:10px}.cargo-extras strong{font-size:9px}.contact-section h2{font-size:26px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
 @media(max-width:650px){.hero h1{font-size:clamp(40px,12.3vw,52px)}.hero h1 br:nth-of-type(2){display:block}.hero h1 .muted-heading:before{content:none}.hero h1{overflow-wrap:normal}.hero-asterisk{font-size:43px;right:4px}.hero-copy{overflow:hidden}}
+.calculator-telegram{margin-top:9px;border-radius:8px!important}.calculator-telegram.btn.telegram{background:#eef5f7;border-color:#d8e6ea;color:#285d70}.calculator-telegram.btn.telegram:hover{background:#e2eff2}.calculator-telegram.btn.telegram svg{color:#327996}
+.faq-title-second{display:inline}
+@media(max-width:650px){.faq-title-second{display:block}}
+.service-card{isolation:isolate;padding:0;justify-content:flex-end}
+.service-cover{position:absolute;inset:0 0 auto;width:100%;height:66%;object-fit:cover;object-position:center 42%;z-index:0}
+.service-card:before{content:"";position:absolute;inset:0 0 auto;height:66%;background:linear-gradient(180deg,#101b184f 0%,transparent 72%);z-index:1;pointer-events:none}
+.service-card-top{position:absolute;top:19px;left:20px;right:20px;color:#fff;text-shadow:0 1px 8px #0008;z-index:2}
+.service-card-top>svg{filter:drop-shadow(0 1px 5px #0008)}
+.service-art{display:none}
+.service-card-bottom{position:relative;z-index:2;width:100%;min-height:34%;padding:15px 20px 18px;background:inherit}
+@media(max-width:900px){.service-card-top{top:15px;left:14px;right:14px}.service-card-bottom{padding:12px 14px 15px}}
