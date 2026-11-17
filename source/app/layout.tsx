@@ -3,6 +3,7 @@ import './globals.css';
 import './editorial.css';
 import './klever.css';
 import './hero-ticker.css';
+import './team-section.css';
 import AnalyticsProvider from './analytics-provider';
 import { env } from 'cloudflare:workers';
 import { publicLaunchReady } from '@/lib/public-launch';
