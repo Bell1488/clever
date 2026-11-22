@@ -1,11 +1,11 @@
-# Деплой КЛЕВЕР на VPS
+# Деплой НЕКСУС на VPS
 
-Инструкция для готовой Node.js-сборки в каталоге `site/`, домена `cleverobmen.pro` и Ubuntu Server 24.04. Для другой версии Ubuntu названия пакетов и способ установки Certbot могут отличаться.
+Инструкция для готовой Node.js-сборки в каталоге `site/`, домена `nexusobmen.pro` и Ubuntu Server 24.04. Для другой версии Ubuntu названия пакетов и способ установки Certbot могут отличаться.
 
 ## Что понадобится
 
 - VPS с публичным IPv4 и Ubuntu Server 24.04.
-- Доступ к DNS-записям домена `cleverobmen.pro`.
+- Доступ к DNS-записям домена `nexusobmen.pro`.
 - Git-доступ к `https://github.com/Bell1488/clever.git`.
 - Данные Telegram-бота, ID группы и рабочий SOCKS5h-прокси.
 - Номер счётчика Яндекс Метрики. Если его ещё нет, оставьте `METRIKA_ID` пустым и завершите настройку до публичного запуска.
@@ -19,18 +19,18 @@
 | Тип | Имя | Значение |
 |---|---|---|
 | A | `@` | Публичный IPv4 вашего VPS |
-| CNAME | `www` | `cleverobmen.pro` |
+| CNAME | `www` | `nexusobmen.pro` |
 
 Если провайдер не поддерживает CNAME для `www`, добавьте для него A-запись на тот же IPv4. Не оставляйте AAAA-запись, если на VPS не настроен IPv6: часть посетителей тогда может попадать на недоступный адрес.
 
 Проверьте, что DNS уже указывает на VPS:
 
 ```bash
-dig +short A cleverobmen.pro
-dig +short CNAME www.cleverobmen.pro
+dig +short A nexusobmen.pro
+dig +short CNAME www.nexusobmen.pro
 ```
 
-В первой команде должен появиться IPv4 VPS. Вторая должна вернуть `cleverobmen.pro` или адрес, в который DNS-провайдер разворачивает эту запись.
+В первой команде должен появиться IPv4 VPS. Вторая должна вернуть `nexusobmen.pro` или адрес, в который DNS-провайдер разворачивает эту запись.
 
 ## 2. Подготовьте сервер
 
@@ -97,7 +97,7 @@ nano /etc/clever/clever.env
 ```dotenv
 PORT=3000
 HOST=127.0.0.1
-SITE_URL=https://cleverobmen.pro
+SITE_URL=https://nexusobmen.pro
 METRIKA_ID=ВАШ_ЧИСЛОВОЙ_ID
 TELEGRAM_URL=https://t.me/ВАША_ПУБЛИЧНАЯ_ССЫЛКА
 CONTACT_PHONE=
@@ -163,7 +163,7 @@ curl -I http://127.0.0.1:3000/
 Создайте конфигурацию виртуального хоста:
 
 ```bash
-nano /etc/nginx/sites-available/cleverobmen.pro
+nano /etc/nginx/sites-available/nexusobmen.pro
 ```
 
 Вставьте конфигурацию для первичного HTTP-запуска и проверки Certbot:
@@ -172,7 +172,7 @@ nano /etc/nginx/sites-available/cleverobmen.pro
 server {
     listen 80;
     listen [::]:80;
-    server_name cleverobmen.pro www.cleverobmen.pro;
+    server_name nexusobmen.pro www.nexusobmen.pro;
 
     client_max_body_size 32k;
 
@@ -190,10 +190,10 @@ server {
 Включите сайт и проверьте конфигурацию:
 
 ```bash
-ln -s /etc/nginx/sites-available/cleverobmen.pro /etc/nginx/sites-enabled/cleverobmen.pro
+ln -s /etc/nginx/sites-available/nexusobmen.pro /etc/nginx/sites-enabled/nexusobmen.pro
 nginx -t
 systemctl reload nginx
-curl -I http://cleverobmen.pro/
+curl -I http://nexusobmen.pro/
 ```
 
 Если ссылка уже существует, не создавайте её повторно. Убедитесь, что в Nginx нет другого активного `server` с теми же `server_name`.
@@ -207,14 +207,14 @@ snap install core
 snap refresh core
 snap install --classic certbot
 ln -s /snap/bin/certbot /usr/local/bin/certbot
-certbot --nginx --redirect -d cleverobmen.pro -d www.cleverobmen.pro
+certbot --nginx --redirect -d nexusobmen.pro -d www.nexusobmen.pro
 ```
 
 Certbot настроит HTTPS и перенаправление на защищённое соединение. Проверьте автоматическое продление:
 
 ```bash
 certbot renew --dry-run
-curl -I https://cleverobmen.pro/
+curl -I https://nexusobmen.pro/
 ```
 
 ## 8. Проверьте сайт и доставку заявки
@@ -231,11 +231,11 @@ node --env-file=/etc/clever/clever.env server.mjs --check-telegram
 До включения индексации проверьте главную, карго, блог и статьи:
 
 ```bash
-curl -I https://cleverobmen.pro/
-curl -I https://cleverobmen.pro/cargo
-curl -I https://cleverobmen.pro/blog
-curl -I https://cleverobmen.pro/blog/oplata-postavshchiku-kitay
-curl -s https://cleverobmen.pro/robots.txt
+curl -I https://nexusobmen.pro/
+curl -I https://nexusobmen.pro/cargo
+curl -I https://nexusobmen.pro/blog
+curl -I https://nexusobmen.pro/blog/oplata-postavshchiku-kitay
+curl -s https://nexusobmen.pro/robots.txt
 ```
 
 Откройте сайт в браузере и отправьте одну тестовую заявку с контролируемым контактом. Убедитесь, что она приходит в нужную Telegram-группу через SOCKS5h и что интерфейс показывает подтверждение отправки. При сбое проверьте логи:
@@ -263,11 +263,11 @@ PUBLIC_LAUNCH=true
 
 ```bash
 systemctl restart clever
-curl -s https://cleverobmen.pro/robots.txt
-curl -s https://cleverobmen.pro/sitemap.xml
+curl -s https://nexusobmen.pro/robots.txt
+curl -s https://nexusobmen.pro/sitemap.xml
 ```
 
-Sitemap должен содержать главную, карго, блог и адреса всех шести статей. `/admin` должен возвращать `404`. Убедитесь, что `SITE_URL` задан без `www`, чтобы главным адресом оставался `https://cleverobmen.pro`.
+Sitemap должен содержать главную, карго, блог и адреса всех шести статей. `/admin` должен возвращать `404`. Убедитесь, что `SITE_URL` задан без `www`, чтобы главным адресом оставался `https://nexusobmen.pro`.
 
 ## Обновление сайта
 
@@ -279,7 +279,7 @@ systemctl restart clever
 systemctl status clever --no-pager
 ```
 
-Проверяйте запуск после обновления через `curl -I https://cleverobmen.pro/` и `journalctl`. Файл `/etc/clever/clever.env` и заявки в `/var/lib/clever/data` не находятся в каталоге репозитория и не перезаписываются `git pull`.
+Проверяйте запуск после обновления через `curl -I https://nexusobmen.pro/` и `journalctl`. Файл `/etc/clever/clever.env` и заявки в `/var/lib/clever/data` не находятся в каталоге репозитория и не перезаписываются `git pull`.
 
 ## Резервное копирование и безопасность
 
