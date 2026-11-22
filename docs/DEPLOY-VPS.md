@@ -98,7 +98,7 @@ nano /etc/clever/clever.env
 PORT=3000
 HOST=127.0.0.1
 SITE_URL=https://nexusobmen.pro
-METRIKA_ID=ВАШ_ЧИСЛОВОЙ_ID
+METRIKA_ID=114510321
 TELEGRAM_URL=https://t.me/nexus_PRO_obmen
 CONTACT_PHONE=
 CONTACT_EMAIL=
