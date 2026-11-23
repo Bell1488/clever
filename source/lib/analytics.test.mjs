@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { DEFAULT_CONFIG } from './company.ts';
+import { startMetrika, trackGoal } from './analytics.ts';
+
+const scripts=[];
+globalThis.localStorage={getItem:()=>{throw new Error('Analytics must not consult consent storage')}};
+globalThis.location={origin:'https://nerida.pro',pathname:'/cargo',search:'?utm_source=yandex&contact=private'};
+globalThis.CustomEvent=class{constructor(type,options){this.type=type;this.detail=options.detail}};
+globalThis.window={__KLEVER_CONFIG:DEFAULT_CONFIG,dispatchEvent(){}};
+globalThis.document={referrer:'https://yandex.ru/search/?text=private',querySelector:()=>scripts[0],createElement:()=>({dataset:{}}),head:{appendChild:script=>scripts.push(script)}};
+startMetrika(DEFAULT_CONFIG);
+assert.equal(scripts.length,1,'counter starts without a consent decision or available storage');
+startMetrika(DEFAULT_CONFIG);
+assert.equal(scripts.length,1,'one shared script across the site');
+assert.equal(scripts[0].src,'https://mc.yandex.ru/metrika/tag.js?id=114601476');
+assert.equal(window.ym.a.length,1,'one counter initialization');
+const [id,action,options]=window.ym.a[0];
+assert.equal(id,114601476);assert.equal(action,'init');
+for(const flag of ['ssr','webvisor','clickmap','accurateTrackBounce','trackLinks'])assert.equal(options[flag],true);
+assert.equal(options.ecommerce,'dataLayer');
+assert.equal(options.params.site_brand,'nerida');
+assert.equal(options.url,'https://nerida.pro/cargo?utm_source=yandex');
+trackGoal('click_telegram',{placement:'header',contact:'private'});
+assert.deepEqual(window.ym.a[1],[114601476,'reachGoal','click_telegram',{placement:'header'}]);
+globalThis.localStorage={getItem:()=>'no'};
+trackGoal('click_phone',{placement:'contacts'});
+assert.deepEqual(window.ym.a[2],[114601476,'reachGoal','click_phone',{placement:'contacts'}],'legacy refusal no longer gates goals');
+console.log('Metrika checks passed: automatic startup, no consent/storage dependency, single initialization and safe goals.');

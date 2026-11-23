@@ -4130,6 +4130,14 @@ var articles = [
 		]
 	}
 ];
+// lib/company.ts
+var DEFAULT_CONFIG = {
+	metrikaId: 114601476,
+	telegramUrl: "https://t.me/nerida_obmen",
+	phone: "+7 906 655 2236",
+	email: "info@nerida.cc",
+	portable: false
+};
 // portable/server.ts
 var localTelegram = () => ({
 	token: process.env.TELEGRAM_BOT_TOKEN,
@@ -4220,14 +4228,6 @@ async function body(req) {
 	}
 	return text;
 }
-function validUrl(value, host) {
-	try {
-		const u = new URL(value || "");
-		return u.protocol === "https:" && (u.hostname === host || u.hostname.endsWith("." + host)) ? u.href : "";
-	} catch {
-		return "";
-	}
-}
 function siteOrigin() {
 	try {
 		const url = new URL(process.env.SITE_URL || "");
@@ -4238,10 +4238,7 @@ function siteOrigin() {
 }
 function config() {
 	return {
-		metrikaId: /^\d{5,12}$/.test(process.env.METRIKA_ID || "") ? Number(process.env.METRIKA_ID) : 0,
-		telegramUrl: "https://t.me/nerida_obmen",
-		phone: "+7 906 655 2236",
-		email: "info@nerida.cc",
+		...DEFAULT_CONFIG,
 		portable: true
 	};
 }

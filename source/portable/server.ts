@@ -8,6 +8,7 @@ import { checkTelegram,telegramFailureHint,TelegramDeliveryError } from '../lib/
 import { leadFingerprint } from '../lib/lead-hash';
 import { leadSchema } from '../lib/lead-schema';
 import { articles } from '../lib/articles';
+import { DEFAULT_CONFIG } from '../lib/company';
 const localTelegram=()=>({token:process.env.TELEGRAM_BOT_TOKEN,chatId:process.env.TELEGRAM_CHAT_ID,proxyUrl:process.env.TELEGRAM_PROXY_URL});
 if(process.argv.includes('--check-telegram')){
  try{await checkTelegram(localTelegram());console.log('Telegram OK: SOCKS5h, TLS, токен, чат и права бота проверены. Сообщения не отправлялись.');process.exit(0)}
@@ -33,7 +34,7 @@ const escape=(s:unknown)=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':
 function json(res:ServerResponse,status:number,value:unknown){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value))}
 async function body(req:IncomingMessage){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>16000)throw new Error('too_large')}return text}
 function siteOrigin(){try{const url=new URL(process.env.SITE_URL||'');return url.protocol==='https:'?url.origin:''}catch{return ''}}
-function config(){return {metrikaId:/^\d{5,12}$/.test(process.env.METRIKA_ID||'')?Number(process.env.METRIKA_ID):0,telegramUrl:'https://t.me/nerida_obmen',phone:'+7 906 655 2236',email:'info@nerida.cc',portable:true}}
+function config(){return {...DEFAULT_CONFIG,portable:true}}
 function clientIp(req:IncomingMessage){const remote=req.socket.remoteAddress||'unknown';const loopback=remote==='127.0.0.1'||remote==='::1'||remote==='::ffff:127.0.0.1';const forwarded=req.headers['x-real-ip'];return loopback&&typeof forwarded==='string'&&forwarded.length<=64?forwarded.trim():remote}
 const server=createServer(async(req,res)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');res.setHeader('X-Frame-Options','SAMEORIGIN');try{
  const url=new URL(req.url||'/','http://localhost');const path=decodeURIComponent(url.pathname).replace(/\/$/,'')||'/';
