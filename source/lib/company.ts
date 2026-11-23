@@ -1,3 +1,3 @@
-export const COMPANY={brand:'НЕКСУС',name:'ООО «НЕКСУС»',inn:'5050172702',kpp:'505001001',ogrn:'1265000071236',registered:'13.10.2026',address:'141100, Московская область, г. о. Щёлково, г. Щёлково, пер. 1-й Советский, стр. 25Б, к. 11, помещ. 3, офис 317/10',registry:'https://www.rusprofile.ru/requisites/1265000071236',consentVersion:'2026-11-03'} as const;
-export const DEFAULT_CONFIG={metrikaId:0,telegramUrl:'',phone:'',email:'',preview:true,portable:false};
+export const COMPANY={brand:'НЕРИДА',name:'ООО «НЕРИДА»',inn:'7804721326',kpp:'780401001',ogrn:'1267800044775',registered:'19.06.2026',address:'195220, г. Санкт-Петербург, вн. тер. г. муниципальный округ Пискаревка, дор. Кушелевская, д. 7, к. 4, литера А, кв. 290',registry:'https://www.rusprofile.ru/id/1267800044775',consentVersion:'2026-11-03'} as const;
+export const DEFAULT_CONFIG={metrikaId:0,telegramUrl:'https://t.me/nerida_obmen',phone:'+7 906 655 2236',email:'info@nerida.cc',portable:false};
 export type PublicConfig=typeof DEFAULT_CONFIG;

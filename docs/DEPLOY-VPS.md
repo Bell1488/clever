@@ -1,14 +1,14 @@
-# Деплой НЕКСУС на VPS
+# Деплой НЕРИДА на VPS
 
-Инструкция для готовой Node.js-сборки в каталоге `site/`, домена `nexusobmen.pro` и Ubuntu Server 24.04. Для другой версии Ubuntu названия пакетов и способ установки Certbot могут отличаться.
+Инструкция для готовой Node.js-сборки в каталоге `site/`, домена `nerida.pro` и Ubuntu Server 24.04. Для другой версии Ubuntu названия пакетов и способ установки Certbot могут отличаться.
 
 ## Что понадобится
 
 - VPS с публичным IPv4 и Ubuntu Server 24.04.
-- Доступ к DNS-записям домена `nexusobmen.pro`.
+- Доступ к DNS-записям домена `nerida.pro`.
 - Git-доступ к `https://github.com/Bell1488/clever.git`.
 - Данные Telegram-бота, ID группы и рабочий SOCKS5h-прокси.
-- Номер счётчика Яндекс Метрики. Если его ещё нет, оставьте `METRIKA_ID` пустым и завершите настройку до публичного запуска.
+- Номер счётчика Яндекс Метрики, если он уже есть. Иначе оставьте `METRIKA_ID` пустым и подключите его позднее.
 
 Сайт требует Node.js 22.13 или новее. Зависимости на VPS устанавливать не нужно: сервер и клиентская сборка уже находятся в `site/`.
 
@@ -19,18 +19,18 @@
 | Тип | Имя | Значение |
 |---|---|---|
 | A | `@` | Публичный IPv4 вашего VPS |
-| CNAME | `www` | `nexusobmen.pro` |
+| CNAME | `www` | `nerida.pro` |
 
 Если провайдер не поддерживает CNAME для `www`, добавьте для него A-запись на тот же IPv4. Не оставляйте AAAA-запись, если на VPS не настроен IPv6: часть посетителей тогда может попадать на недоступный адрес.
 
 Проверьте, что DNS уже указывает на VPS:
 
 ```bash
-dig +short A nexusobmen.pro
-dig +short CNAME www.nexusobmen.pro
+dig +short A nerida.pro
+dig +short CNAME www.nerida.pro
 ```
 
-В первой команде должен появиться IPv4 VPS. Вторая должна вернуть `nexusobmen.pro` или адрес, в который DNS-провайдер разворачивает эту запись.
+В первой команде должен появиться IPv4 VPS. Вторая должна вернуть `nerida.pro` или адрес, в который DNS-провайдер разворачивает эту запись.
 
 ## 2. Подготовьте сервер
 
@@ -97,13 +97,10 @@ nano /etc/clever/clever.env
 ```dotenv
 PORT=3000
 HOST=127.0.0.1
-SITE_URL=https://nexusobmen.pro
-METRIKA_ID=114510321
-TELEGRAM_URL=https://t.me/nexus_PRO_obmen
-CONTACT_PHONE=
-CONTACT_EMAIL=
+SITE_URL=https://nerida.pro
+METRIKA_ID=
+# Telegram https://t.me/nerida_obmen, почта и телефон закреплены в коде.
 DATA_DIR=/var/lib/clever/data
-PUBLIC_LAUNCH=false
 
 TELEGRAM_BOT_TOKEN=ТОКЕН_БОТА
 TELEGRAM_CHAT_ID=ID_ГРУППЫ
@@ -125,7 +122,7 @@ nano /etc/systemd/system/clever.service
 
 ```ini
 [Unit]
-Description=Klever website and Telegram lead service
+Description=Nerida website and Telegram lead service
 After=network-online.target
 Wants=network-online.target
 
@@ -156,14 +153,14 @@ systemctl status clever --no-pager
 curl -I http://127.0.0.1:3000/
 ```
 
-Публикация управляется только параметром `PUBLIC_LAUNCH`: `false` закрывает индексацию, `true` открывает. Метрика и Telegram на этот переключатель не влияют.
+Сайт всегда открыт для индексации; переключатель публикации удалён. Метрика и Telegram на индексацию не влияют.
 
 ## 6. Подключите Nginx
 
 Создайте конфигурацию виртуального хоста:
 
 ```bash
-nano /etc/nginx/sites-available/nexusobmen.pro
+nano /etc/nginx/sites-available/nerida.pro
 ```
 
 Вставьте конфигурацию для первичного HTTP-запуска и проверки Certbot:
@@ -172,7 +169,7 @@ nano /etc/nginx/sites-available/nexusobmen.pro
 server {
     listen 80;
     listen [::]:80;
-    server_name nexusobmen.pro www.nexusobmen.pro;
+    server_name nerida.pro www.nerida.pro;
 
     client_max_body_size 32k;
 
@@ -190,10 +187,10 @@ server {
 Включите сайт и проверьте конфигурацию:
 
 ```bash
-ln -s /etc/nginx/sites-available/nexusobmen.pro /etc/nginx/sites-enabled/nexusobmen.pro
+ln -s /etc/nginx/sites-available/nerida.pro /etc/nginx/sites-enabled/nerida.pro
 nginx -t
 systemctl reload nginx
-curl -I http://nexusobmen.pro/
+curl -I http://nerida.pro/
 ```
 
 Если ссылка уже существует, не создавайте её повторно. Убедитесь, что в Nginx нет другого активного `server` с теми же `server_name`.
@@ -207,14 +204,14 @@ snap install core
 snap refresh core
 snap install --classic certbot
 ln -s /snap/bin/certbot /usr/local/bin/certbot
-certbot --nginx --redirect -d nexusobmen.pro -d www.nexusobmen.pro
+certbot --nginx --redirect -d nerida.pro -d www.nerida.pro
 ```
 
 Certbot настроит HTTPS и перенаправление на защищённое соединение. Проверьте автоматическое продление:
 
 ```bash
 certbot renew --dry-run
-curl -I https://nexusobmen.pro/
+curl -I https://nerida.pro/
 ```
 
 ## 8. Проверьте сайт и доставку заявки
@@ -228,14 +225,14 @@ node --env-file=/etc/clever/clever.env server.mjs --check-telegram
 
 При ошибке команда завершится с кодом 1 и выведет подсказку без секретов. Расшифровка кодов — в `docs/TELEGRAM.md`. После обновления сборки или env-файла перезапустите службу: `systemctl restart clever`.
 
-До включения индексации проверьте главную, карго, блог и статьи:
+Проверьте главную, карго, блог и статьи:
 
 ```bash
-curl -I https://nexusobmen.pro/
-curl -I https://nexusobmen.pro/cargo
-curl -I https://nexusobmen.pro/blog
-curl -I https://nexusobmen.pro/blog/oplata-postavshchiku-kitay
-curl -s https://nexusobmen.pro/robots.txt
+curl -I https://nerida.pro/
+curl -I https://nerida.pro/cargo
+curl -I https://nerida.pro/blog
+curl -I https://nerida.pro/blog/oplata-postavshchiku-kitay
+curl -s https://nerida.pro/robots.txt
 ```
 
 Откройте сайт в браузере и отправьте одну тестовую заявку с контролируемым контактом. Убедитесь, что она приходит в нужную Telegram-группу через SOCKS5h и что интерфейс показывает подтверждение отправки. При сбое проверьте логи:
@@ -245,29 +242,18 @@ journalctl -u clever -n 100 --no-pager
 journalctl -u clever -f
 ```
 
-Также проверьте в Яндекс Метрике цель `lead_success`. Не отмечайте доставку как проверенную, если тестовое сообщение не появилось в группе.
+Если Метрика подключена, также проверьте цель `lead_success`. Не отмечайте доставку как проверенную, если тестовое сообщение не появилось в группе.
 
-## 9. Включите публичную индексацию
+## 9. Проверьте индексацию
 
-Когда сайт готов к публикации, измените параметр в env-файле:
-
-```bash
-nano /etc/clever/clever.env
-```
-
-```dotenv
-PUBLIC_LAUNCH=true
-```
-
-Примените настройку и проверьте публичные robots и sitemap:
+Сайт открыт для индексации по умолчанию; отдельный переключатель не нужен. Проверьте robots и sitemap:
 
 ```bash
-systemctl restart clever
-curl -s https://nexusobmen.pro/robots.txt
-curl -s https://nexusobmen.pro/sitemap.xml
+curl -s https://nerida.pro/robots.txt
+curl -s https://nerida.pro/sitemap.xml
 ```
 
-Sitemap должен содержать главную, карго, блог и адреса всех шести статей. `/admin` должен возвращать `404`. Убедитесь, что `SITE_URL` задан без `www`, чтобы главным адресом оставался `https://nexusobmen.pro`.
+Sitemap должен содержать главную, карго, блог и адреса всех шести статей. `/admin` должен возвращать `404`. Убедитесь, что `SITE_URL` задан без `www`, чтобы главным адресом оставался `https://nerida.pro`.
 
 ## Обновление сайта
 
@@ -275,11 +261,12 @@ Sitemap должен содержать главную, карго, блог и 
 
 ```bash
 git -C /opt/clever pull --ff-only
+grep '^SITE_URL=' /etc/clever/clever.env
 systemctl restart clever
 systemctl status clever --no-pager
 ```
 
-Проверяйте запуск после обновления через `curl -I https://nexusobmen.pro/` и `journalctl`. Файл `/etc/clever/clever.env` и заявки в `/var/lib/clever/data` не находятся в каталоге репозитория и не перезаписываются `git pull`.
+Если `SITE_URL` не равен `https://nerida.pro`, исправьте его в `/etc/clever/clever.env` и перезапустите службу. Проверяйте запуск через `curl -I https://nerida.pro/` и `journalctl`. Файл `/etc/clever/clever.env` и заявки в `/var/lib/clever/data` не находятся в каталоге репозитория и не перезаписываются `git pull`. Если `git pull --ff-only` сообщает о локальных изменениях, сохраните их и разберите конфликт, не удаляя данные.
 
 ## Резервное копирование и безопасность
 

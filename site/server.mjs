@@ -4,7 +4,7 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-//#region lib/lead-hash.ts
+// lib/lead-hash.ts
 function leadFingerprint(data) {
 	return JSON.stringify([
 		data.name,
@@ -15,11 +15,10 @@ function leadFingerprint(data) {
 		data.consentVersion
 	]);
 }
-//#endregion
-//#region lib/telegram-message.ts
+// lib/telegram-message.ts
 function telegramMessage(lead) {
 	const lines = [
-		"🟢 Новая заявка · НЕКСУС",
+		"🟢 Новая заявка · НЕРИДА",
 		"№ " + lead.id.slice(0, 8),
 		"",
 		`Услуга: ${lead.service}`,
@@ -33,8 +32,7 @@ function telegramMessage(lead) {
 	lines.push("", "Получено: " + new Date(lead.createdAt).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" }) + " МСК");
 	return Array.from(lines.join("\n")).slice(0, 3900).join("");
 }
-//#endregion
-//#region lib/telegram-node.ts
+// lib/telegram-node.ts
 var TelegramDeliveryError = class extends Error {
 	constructor(code, detail) {
 		super(code);
@@ -123,7 +121,8 @@ async function telegramRequest(config, method, data) {
 			diagnostic = (diagnostic + chunk).slice(0, 16384);
 		});
 		child.on("error", (error) => {
-			finish(new TelegramDeliveryError("network_error", typeof error.code === "string" && /^[A-Z0-9_]{1,40}$/.test(error.code) ? error.code : "curl_unavailable"));
+			const code = typeof error.code === "string" && /^[A-Z0-9_]{1,40}$/.test(error.code) ? error.code : "curl_unavailable";
+			finish(new TelegramDeliveryError("network_error", code));
 		});
 		child.on("close", (status) => {
 			if (settled) return;
@@ -137,7 +136,8 @@ async function telegramRequest(config, method, data) {
 					finish(void 0, body.result);
 					return;
 				}
-				finish(new TelegramDeliveryError("telegram_rejected", Number.isInteger(body.error_code) ? String(body.error_code) : void 0));
+				const code = Number.isInteger(body.error_code) ? String(body.error_code) : void 0;
+				finish(new TelegramDeliveryError("telegram_rejected", code));
 			} catch {
 				finish(new TelegramDeliveryError("upstream_failed"));
 			}
@@ -204,8 +204,7 @@ function telegramFailureHint(error) {
 	};
 	return hints[error.detail || ""] || (error.code === "timeout" ? hints.curl_28 : "Проверьте доступность Telegram через SOCKS5h и настройки curl.");
 }
-//#endregion
-//#region portable/telegram-outbox.ts
+// portable/telegram-outbox.ts
 function createTelegramOutbox(file) {
 	const jobs = /* @__PURE__ */ new Map();
 	let loaded = null;
@@ -270,8 +269,7 @@ function createTelegramOutbox(file) {
 		}
 	};
 }
-//#endregion
-//#region node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/util.js
+// ../../../../AppData/Local/Temp/opencode/nerida-build/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util) {
 	util.assertEqual = (_) => {};
@@ -366,8 +364,7 @@ var getParsedType = (data) => {
 		default: return ZodParsedType.unknown;
 	}
 };
-//#endregion
-//#region node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/ZodError.js
+// ../../../../AppData/Local/Temp/opencode/nerida-build/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
 	"invalid_type",
 	"invalid_literal",
@@ -465,8 +462,7 @@ var ZodError = class ZodError extends Error {
 ZodError.create = (issues) => {
 	return new ZodError(issues);
 };
-//#endregion
-//#region node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
+// ../../../../AppData/Local/Temp/opencode/nerida-build/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
 	let message;
 	switch (issue.code) {
@@ -499,13 +495,14 @@ var errorMap = (issue, _ctx) => {
 			message = `Invalid date`;
 			break;
 		case ZodIssueCode.invalid_string:
-			if (typeof issue.validation === "object") if ("includes" in issue.validation) {
-				message = `Invalid input: must include "${issue.validation.includes}"`;
-				if (typeof issue.validation.position === "number") message = `${message} at one or more positions greater than or equal to ${issue.validation.position}`;
-			} else if ("startsWith" in issue.validation) message = `Invalid input: must start with "${issue.validation.startsWith}"`;
-			else if ("endsWith" in issue.validation) message = `Invalid input: must end with "${issue.validation.endsWith}"`;
-			else util.assertNever(issue.validation);
-			else if (issue.validation !== "regex") message = `Invalid ${issue.validation}`;
+			if (typeof issue.validation === "object") {
+				if ("includes" in issue.validation) {
+					message = `Invalid input: must include "${issue.validation.includes}"`;
+					if (typeof issue.validation.position === "number") message = `${message} at one or more positions greater than or equal to ${issue.validation.position}`;
+				} else if ("startsWith" in issue.validation) message = `Invalid input: must start with "${issue.validation.startsWith}"`;
+				else if ("endsWith" in issue.validation) message = `Invalid input: must end with "${issue.validation.endsWith}"`;
+				else util.assertNever(issue.validation);
+			} else if (issue.validation !== "regex") message = `Invalid ${issue.validation}`;
 			else message = "Invalid";
 			break;
 		case ZodIssueCode.too_small:
@@ -542,14 +539,12 @@ var errorMap = (issue, _ctx) => {
 	}
 	return { message };
 };
-//#endregion
-//#region node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/errors.js
+// ../../../../AppData/Local/Temp/opencode/nerida-build/node_modules/zod/v3/errors.js
 var overrideErrorMap = errorMap;
 function getErrorMap() {
 	return overrideErrorMap;
 }
-//#endregion
-//#region node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
+// ../../../../AppData/Local/Temp/opencode/nerida-build/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
 	const { data, path, errorMaps, issueData } = params;
 	const fullPath = [...path, ...issueData.path || []];
@@ -652,15 +647,13 @@ var isAborted = (x) => x.status === "aborted";
 var isDirty = (x) => x.status === "dirty";
 var isValid = (x) => x.status === "valid";
 var isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
-//#endregion
-//#region node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/errorUtil.js
+// ../../../../AppData/Local/Temp/opencode/nerida-build/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil) {
 	errorUtil.errToObj = (message) => typeof message === "string" ? { message } : message || {};
 	errorUtil.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
-//#endregion
-//#region node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
+// ../../../../AppData/Local/Temp/opencode/nerida-build/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
 	constructor(parent, value, path, key) {
 		this._cachedPath = [];
@@ -670,8 +663,10 @@ var ParseInputLazyPath = class {
 		this._key = key;
 	}
 	get path() {
-		if (!this._cachedPath.length) if (Array.isArray(this._key)) this._cachedPath.push(...this._path, ...this._key);
-		else this._cachedPath.push(...this._path, this._key);
+		if (!this._cachedPath.length) {
+			if (Array.isArray(this._key)) this._cachedPath.push(...this._path, ...this._key);
+			else this._cachedPath.push(...this._path, this._key);
+		}
 		return this._cachedPath;
 	}
 };
@@ -3482,30 +3477,32 @@ var ZodEffects = class extends ZodType {
 				});
 			});
 		}
-		if (effect.type === "transform") if (ctx.common.async === false) {
-			const base = this._def.schema._parseSync({
+		if (effect.type === "transform") {
+			if (ctx.common.async === false) {
+				const base = this._def.schema._parseSync({
+					data: ctx.data,
+					path: ctx.path,
+					parent: ctx
+				});
+				if (!isValid(base)) return INVALID;
+				const result = effect.transform(base.value, checkCtx);
+				if (result instanceof Promise) throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
+				return {
+					status: status.value,
+					value: result
+				};
+			} else return this._def.schema._parseAsync({
 				data: ctx.data,
 				path: ctx.path,
 				parent: ctx
+			}).then((base) => {
+				if (!isValid(base)) return INVALID;
+				return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({
+					status: status.value,
+					value: result
+				}));
 			});
-			if (!isValid(base)) return INVALID;
-			const result = effect.transform(base.value, checkCtx);
-			if (result instanceof Promise) throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
-			return {
-				status: status.value,
-				value: result
-			};
-		} else return this._def.schema._parseAsync({
-			data: ctx.data,
-			path: ctx.path,
-			parent: ctx
-		}).then((base) => {
-			if (!isValid(base)) return INVALID;
-			return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({
-				status: status.value,
-				value: result
-			}));
-		});
+		}
 		util.assertNever(effect);
 	}
 };
@@ -3811,8 +3808,7 @@ ZodOptional.create;
 ZodNullable.create;
 ZodEffects.createWithPreprocess;
 ZodPipeline.create;
-//#endregion
-//#region lib/contact.ts
+// lib/contact.ts
 function normalizeContact(value, preferred) {
 	let text = value.trim();
 	if (/^(https?:\/\/)?(?:www\.)?t\.me\//i.test(text)) try {
@@ -3836,8 +3832,7 @@ function normalizeContact(value, preferred) {
 	};
 	return null;
 }
-//#endregion
-//#region lib/lead-schema.ts
+// lib/lead-schema.ts
 var leadSchema = objectType({
 	requestId: stringType().uuid().optional(),
 	name: stringType().trim().max(80).default(""),
@@ -3874,13 +3869,7 @@ var leadSchema = objectType({
 	...v,
 	...normalizeContact(v.contact, v.channel)
 }));
-//#endregion
-//#region lib/public-launch.ts
-function publicLaunchReady(env = process.env) {
-	return env.PUBLIC_LAUNCH === "true";
-}
-//#endregion
-//#region lib/articles.ts
+// lib/articles.ts
 var articles = [
 	{
 		slug: "alipay-wechat-pered-popolneniem",
@@ -3909,7 +3898,7 @@ var articles = [
 					"Срок, к которому нужна операция.",
 					"Контакт, по которому удобно уточнить детали."
 				],
-				note: "В НЕКСУС предварительные заявки на платежи и выкуп принимаются от 5 000 ₽. Калькулятор использует расчётный курс 12,79 RUB/CNY; актуальные условия подтвердит менеджер."
+				note: "В НЕРИДА предварительные заявки на платежи и выкуп принимаются от 5 000 ₽. Калькулятор использует расчётный курс 12,79 RUB/CNY; актуальные условия подтвердит менеджер."
 			},
 			{
 				id: "codes",
@@ -3966,7 +3955,7 @@ var articles = [
 			{
 				id: "order",
 				title: "Как подготовить запрос на выкуп",
-				paragraphs: ["Удобнее собрать позиции в один список: ссылка, вариант, количество, допустимые замены и комментарий. Добавьте город получения и желаемый срок. Если качество нужно оценить до закупки основной партии, отдельно укажите запрос на образец.", "В НЕКСУС можно начать со ссылок на товары. Возможность выкупа, актуальную цену и состав услуг подтвердим после проверки запроса. Доставка рассчитывается отдельно; предварительный ориентир можно получить в карго-калькуляторе."],
+				paragraphs: ["Удобнее собрать позиции в один список: ссылка, вариант, количество, допустимые замены и комментарий. Добавьте город получения и желаемый срок. Если качество нужно оценить до закупки основной партии, отдельно укажите запрос на образец.", "В НЕРИДА можно начать со ссылок на товары. Возможность выкупа, актуальную цену и состав услуг подтвердим после проверки запроса. Доставка рассчитывается отдельно; предварительный ориентир можно получить в карго-калькуляторе."],
 				note: "Описания площадок приведены по материалам Alibaba Group. Условия конкретных заказов проверяются у продавца и в интерфейсе площадки."
 			}
 		],
@@ -4015,7 +4004,7 @@ var articles = [
 			{
 				id: "dispatch",
 				title: "Перед отправкой сверьте итоговые данные",
-				paragraphs: ["Для логистики нужны фактический вес и объём уже упакованной партии. Если упаковка изменилась, первоначальный ориентир может потребовать пересчёта. Уточните число мест, способ перевозки и состав итоговой суммы.", "Для передачи заявки в НЕКСУС можно использовать простой шаблон: «Товар — …; ссылки — …; количество — …; город получения — …; нужен выкуп / только доставка; особенности — …». Такой запрос помогает быстрее перейти к предметному расчёту."]
+				paragraphs: ["Для логистики нужны фактический вес и объём уже упакованной партии. Если упаковка изменилась, первоначальный ориентир может потребовать пересчёта. Уточните число мест, способ перевозки и состав итоговой суммы.", "Для передачи заявки в НЕРИДА можно использовать простой шаблон: «Товар — …; ссылки — …; количество — …; город получения — …; нужен выкуп / только доставка; особенности — …». Такой запрос помогает быстрее перейти к предметному расчёту."]
 			}
 		]
 	},
@@ -4033,7 +4022,7 @@ var articles = [
 			{
 				id: "why",
 				title: "Груз занимает место, даже если мало весит",
-				paragraphs: ["У партии есть как минимум два параметра: масса в килограммах и объём упаковки в кубометрах. Лёгкие крупные коробки могут занимать столько же места, сколько тяжёлый компактный груз. Поэтому в схемах с объёмным весом сравнивают фактическую массу и расчётный эквивалент объёма.", "В калькуляторе НЕКСУС оплачиваемый вес равен большему из двух значений. Это модель предварительного расчёта, а не универсальное правило всех перевозчиков: окончательный способ тарификации согласуется для вашего груза."]
+				paragraphs: ["У партии есть как минимум два параметра: масса в килограммах и объём упаковки в кубометрах. Лёгкие крупные коробки могут занимать столько же места, сколько тяжёлый компактный груз. Поэтому в схемах с объёмным весом сравнивают фактическую массу и расчётный эквивалент объёма.", "В калькуляторе НЕРИДА оплачиваемый вес равен большему из двух значений. Это модель предварительного расчёта, а не универсальное правило всех перевозчиков: окончательный способ тарификации согласуется для вашего груза."]
 			},
 			{
 				id: "example",
@@ -4141,8 +4130,7 @@ var articles = [
 		]
 	}
 ];
-//#endregion
-//#region portable/server.ts
+// portable/server.ts
 var localTelegram = () => ({
 	token: process.env.TELEGRAM_BOT_TOKEN,
 	chatId: process.env.TELEGRAM_CHAT_ID,
@@ -4176,7 +4164,7 @@ try {
 } catch (error) {
 	if (error.code !== "ENOENT") throw error;
 }
-var retentionMs = 2160 * 60 * 60 * 1e3;
+var retentionMs = 7776e6;
 var storageQueue = Promise.resolve();
 function withStorage(work) {
 	const task = storageQueue.then(work, work);
@@ -4198,7 +4186,7 @@ async function pruneExpiredLeads() {
 await pruneExpiredLeads();
 setInterval(() => {
 	pruneExpiredLeads().catch(() => console.error("lead_retention_failed"));
-}, 1440 * 60 * 1e3).unref();
+}, 864e5).unref();
 var routes = [
 	"/",
 	"/cargo",
@@ -4251,10 +4239,9 @@ function siteOrigin() {
 function config() {
 	return {
 		metrikaId: /^\d{5,12}$/.test(process.env.METRIKA_ID || "") ? Number(process.env.METRIKA_ID) : 0,
-		telegramUrl: validUrl(process.env.TELEGRAM_URL, "t.me"),
-		phone: /^\+?[\d\s()-]{10,24}$/.test(process.env.CONTACT_PHONE || "") ? process.env.CONTACT_PHONE : "",
-		email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.CONTACT_EMAIL || "") ? process.env.CONTACT_EMAIL : "",
-		preview: !publicLaunchReady(process.env),
+		telegramUrl: "https://t.me/nerida_obmen",
+		phone: "+7 906 655 2236",
+		email: "info@nerida.cc",
 		portable: true
 	};
 }
@@ -4338,13 +4325,14 @@ var server = createServer(async (req, res) => {
 		}
 		if (req.method !== "GET" && req.method !== "HEAD") return json(res, 405, { error: "Метод не поддерживается." });
 		if (path === "/robots.txt") {
+			const origin = siteOrigin();
 			res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-			res.end(publicLaunchReady(process.env) ? "User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: " + siteOrigin() + "/sitemap.xml\n" : "User-agent: *\nDisallow: /\n");
+			res.end("User-agent: *\nAllow: /\nDisallow: /api/\n" + (origin ? "Sitemap: " + origin + "/sitemap.xml\n" : ""));
 			return;
 		}
 		if (path === "/sitemap.xml") {
 			const origin = siteOrigin();
-			if (!publicLaunchReady(process.env) || !origin) return json(res, 404, { error: "Публикация закрыта или не настроен домен." });
+			if (!origin) return json(res, 404, { error: "Не настроен домен SITE_URL." });
 			res.writeHead(200, { "Content-Type": "application/xml; charset=utf-8" });
 			res.end("<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" + routes.filter((p) => ![
 				"/privacy",
@@ -4374,10 +4362,11 @@ var server = createServer(async (req, res) => {
 					".css": "text/css; charset=utf-8",
 					".svg": "image/svg+xml",
 					".png": "image/png",
+					".webp": "image/webp",
+					".ico": "image/x-icon",
 					".woff2": "font/woff2"
 				}[extname(file)] || "application/octet-stream",
-				"Cache-Control": path.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache",
-				...!publicLaunchReady(process.env) ? { "X-Robots-Tag": "noindex, nofollow" } : {}
+				"Cache-Control": path.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache"
 			});
 			res.end(req.method === "HEAD" ? void 0 : data);
 		} catch {
@@ -4392,6 +4381,5 @@ var server = createServer(async (req, res) => {
 	}
 });
 var port = Number(process.env.PORT || 3e3);
-server.listen(port, process.env.HOST || "127.0.0.1", () => console.log(`НЕКСУС запущен: http://${process.env.HOST || "127.0.0.1"}:${server.address().port}`));
-//#endregion
+server.listen(port, process.env.HOST || "127.0.0.1", () => console.log(`НЕРИДА запущен: http://${process.env.HOST || "127.0.0.1"}:${server.address().port}`));
 export {};
